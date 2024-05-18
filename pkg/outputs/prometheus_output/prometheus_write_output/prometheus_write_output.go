@@ -56,8 +56,8 @@ func init() {
 			return &promWriteOutput{
 				cfg:           &config{},
 				logger:        log.New(io.Discard, loggingPrefix, utils.DefaultLoggingFlags),
-				eventChan:     make(chan *formatters.EventMsg),
-				msgChan:       make(chan *outputs.ProtoMsg),
+				eventChan:     make(chan *formatters.EventMsg, 1000),
+				msgChan:       make(chan *outputs.ProtoMsg, 1000),
 				buffDrainCh:   make(chan struct{}),
 				m:             new(sync.Mutex),
 				metadataCache: make(map[string]prompb.MetricMetadata),
@@ -337,7 +337,7 @@ func (p *promWriteOutput) workerHandleEvent(ev *formatters.EventMsg) {
 			}
 			p.buffDrainCh <- struct{}{}
 		}
-		// populate metadata cache
+		// // populate metadata cache
 		p.m.Lock()
 		if p.cfg.Debug {
 			p.logger.Printf("saving metrics metadata")
