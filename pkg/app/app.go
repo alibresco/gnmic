@@ -36,7 +36,6 @@ import (
 	"google.golang.org/grpc/encoding/gzip"
 	"google.golang.org/grpc/grpclog"
 	"google.golang.org/protobuf/proto"
-	"gopkg.in/yaml.v2"
 
 	"github.com/openconfig/gnmic/pkg/api/target"
 	"github.com/openconfig/gnmic/pkg/api/types"
@@ -52,6 +51,10 @@ import (
 const (
 	defaultHTTPClientTimeout = 5 * time.Second
 )
+
+var obscuredAttrs = []string{
+	"password",
+}
 
 type App struct {
 	ctx     context.Context
@@ -226,10 +229,10 @@ func (a *App) PreRunE(cmd *cobra.Command, args []string) error {
 	}
 	a.Logger.Printf("using config file %q", a.Config.FileConfig.ConfigFileUsed())
 	a.logConfigKVs()
-	return a.validateGlobals(cmd)
+	return a.validateGlobals()
 }
 
-func (a *App) validateGlobals(cmd *cobra.Command) error {
+func (a *App) validateGlobals() error {
 	if a.Config.Insecure {
 		if a.Config.SkipVerify {
 			return errors.New("flags --insecure and --skip-verify are mutually exclusive")
@@ -258,12 +261,6 @@ func (a *App) validateGlobals(cmd *cobra.Command) error {
 
 func (a *App) logConfigKVs() {
 	if a.Config.Debug {
-		b, err := yaml.Marshal(a.Config.FileConfig.AllSettings())
-		if err != nil {
-			a.Logger.Printf("could not marshal settings: %v", err)
-		} else {
-			a.Logger.Printf("set flags/config:\n%s\n", string(b))
-		}
 		keys := a.Config.FileConfig.AllKeys()
 		sort.Strings(keys)
 
@@ -272,6 +269,11 @@ func (a *App) logConfigKVs() {
 				continue
 			}
 			v := a.Config.FileConfig.Get(k)
+			for _, obsc := range obscuredAttrs {
+				if strings.HasSuffix(k, obsc) {
+					v = "***"
+				}
+			}
 			a.Logger.Printf("%s='%v'(%T)", k, v, v)
 		}
 	}

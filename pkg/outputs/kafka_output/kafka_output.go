@@ -21,17 +21,16 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/Shopify/sarama"
-	"github.com/damiannolan/sasl/oauthbearer"
+	"github.com/IBM/sarama"
 	"github.com/google/uuid"
-	"github.com/prometheus/client_golang/prometheus"
-	"google.golang.org/protobuf/proto"
-
 	"github.com/openconfig/gnmic/pkg/api/types"
 	"github.com/openconfig/gnmic/pkg/api/utils"
 	"github.com/openconfig/gnmic/pkg/formatters"
 	"github.com/openconfig/gnmic/pkg/gtemplate"
 	"github.com/openconfig/gnmic/pkg/outputs"
+	pkgutils "github.com/openconfig/gnmic/pkg/utils"
+	"github.com/prometheus/client_golang/prometheus"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -85,6 +84,7 @@ type config struct {
 	MaxRetry           int              `mapstructure:"max-retry,omitempty"`
 	Timeout            time.Duration    `mapstructure:"timeout,omitempty"`
 	RecoveryWaitTime   time.Duration    `mapstructure:"recovery-wait-time,omitempty"`
+	FlushFrequency     time.Duration    `mapstructure:"flush-frequency,omitempty"`
 	SyncProducer       bool             `mapstructure:"sync-producer,omitempty"`
 	RequiredAcks       string           `mapstructure:"required-acks,omitempty"`
 	Format             string           `mapstructure:"format,omitempty"`
@@ -524,7 +524,7 @@ func (k *kafkaOutput) createConfig() (*sarama.Config, error) {
 				return &XDGSCRAMClient{HashGeneratorFcn: SHA512}
 			}
 		case sarama.SASLTypeOAuth:
-			cfg.Net.SASL.TokenProvider = oauthbearer.NewTokenProvider(cfg.Net.SASL.User, cfg.Net.SASL.Password, k.cfg.SASL.TokenURL)
+			cfg.Net.SASL.TokenProvider = pkgutils.NewTokenProvider(cfg.Net.SASL.User, cfg.Net.SASL.Password, k.cfg.SASL.TokenURL)
 		}
 	}
 	// SSL or SASL_SSL
@@ -546,6 +546,7 @@ func (k *kafkaOutput) createConfig() (*sarama.Config, error) {
 	cfg.Producer.Retry.Max = k.cfg.MaxRetry
 	cfg.Producer.Return.Successes = true
 	cfg.Producer.Timeout = k.cfg.Timeout
+	cfg.Producer.Flush.Frequency = k.cfg.FlushFrequency
 	switch k.cfg.RequiredAcks {
 	case requiredAcksNoResponse:
 	case requiredAcksWaitForLocal:
