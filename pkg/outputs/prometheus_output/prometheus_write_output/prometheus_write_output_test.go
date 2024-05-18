@@ -2,6 +2,7 @@ package prometheus_write_output
 
 import (
 	"context"
+	"sync"
 	"testing"
 
 	"github.com/openconfig/gnmi/proto/gnmi"
@@ -56,9 +57,19 @@ func BenchmarkRemoteWrite(b *testing.B) {
 
 	// Running the benchmark
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		output.Write(context.Background(), subResponse, outputs.Meta{})
+	wg := new(sync.WaitGroup)
+	writers := 60
+	for j := 0; j < writers; j++ {
+		wg.Add(1)
+		go func() {
+			for i := 0; i < b.N/writers+1; i++ {
+				output.Write(context.Background(), subResponse, outputs.Meta{})
+			}
+			wg.Done()
+		}()
 	}
+	wg.Wait()
+
 	b.StopTimer()
 
 	output.Close()
